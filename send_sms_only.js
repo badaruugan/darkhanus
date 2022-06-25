@@ -9,44 +9,86 @@ console.log("hello darkhan us");
 
 const start = async function () {
   let total = data.length;
-  let sendable = 0;
 
   let successNumberCount = 0;
   let successNumberList = [];
 
   let failedNumberCount = 0;
   let failedNumberList = [];
-  let mobiCount = 0;
 
-  const allowedAmount = 1000;
+  const allowedAmount = 10000;
 
   // calc total number
   const newData = data.filter((entry) => parseFloat(entry.TOTALPRICE) >= allowedAmount && !isEmpty(entry.CUSTOMERPHONE));
   total = newData.length;
   console.log(total);
+
+  await asyncPool(1, newData, async (entry) => {
+    try {
+        const rawMessage = [
+          `DUS HK kod:${entry.CUSNUMBER} tulbur-${parseFloat(entry.TOTALPRICE).toFixed(2)} tug`,
+          " Tulburiig 2022.05.27nii dotor tuluugui tohioldold honog tutamd 0,5%-r aldangi tootsoh ba us hyzgaarlahiig medegdey!"
+        ];
+
+        const message = rawMessage.join("\n");
+
+        if (message.length > 160) {
+          return failedNumberList.push({
+            phoneNumber: `${entry.CUSTOMERPHONE}`,
+            invoice_id: entry.INVOICEID,
+            customer_no: entry.CUSNUMBER,
+            operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
+            message: message,
+            error: `sms_send_error: 160 character overlimit`,
+          });
+        }
+
+        const smsResult = await sendSms({
+          phone_number: `${entry.CUSTOMERPHONE}`,
+          message: message,
+        });
+
+        if (smsResult == true) {
+          successNumberCount++;
+          successNumberList.push({
+            phoneNumber: `${entry.CUSTOMERPHONE}`,
+            operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
+            // "invoice_id" : entry.INVOICEID,
+            // "customer_no" : entry.CUSNUMBER,
+            message: message,
+          });
+           console.log('sent ',successNumberCount, '/' , total);
+        } else {
+          failedNumberCount++;
+          failedNumberList.push({
+            phoneNumber: `${entry.CUSTOMERPHONE}`,
+            invoice_id: entry.INVOICEID,
+            customer_no: entry.CUSNUMBER,
+            operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
+            message: message,
+            error: `sms_send_error: ${JSON.stringify(smsResult)}`,
+          });
+        }
+    } catch (err) {
+      console.log(err);
+    }
+  });
+
+  fs.writeFileSync("successNumberList.json", JSON.stringify(successNumberList));
+  fs.writeFileSync("failedNumberList.json", JSON.stringify(failedNumberList));
+
+  console.log("total", total);
+  console.log("successNumberCount", successNumberCount);
+  console.log("failedNumberCount", failedNumberCount);
+
   return;
-
-  // newData.forEach(entry => {
-  //   if(
-  //     !isEmpty(entry.CUSTOMERPHONE) &&
-  //     `${entry.CUSTOMERPHONE}`.match("^[8-9]{1}[0-9]{7}$") &&
-  //     parseFloat(entry.TOTALPRICE) >= allowedAmount
-  //   ){
-
-  //     console.log(true);
-  //   } else {
-  //     console.log(`phone: ${entry.CUSTOMERPHONE}`, `total : ${parseFloat(entry.TOTALPRICE)}`);
-  //   }
-  // });
-  // console.log(total);
-  // return;
 
 };
 
 const sendSms = async function (body) {
   try {
     const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiJlSFhfYnVRWkhxNUFPa2pfN3oyMEduWU1xUUF3ZTlPOCIsImlhdCI6MTY0Nzk0MTkyNCwiZXhwIjozMjk1OTcwMjQ4fQ.35b8OAjBYbBdElaDzpMS-QFeYbBWcHUnXMjqMFFo0VY";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiI3NFpXUkxfMVZCSFpWRmVnWW9TZWFaTzhQNUVHWGpZRyIsImlhdCI6MTY1MzYyNjQ5MywiZXhwIjozMzA3MzM5Mzg2fQ.TAo6IWqOzxQe5TS0zIR-PsitaiSG4y3-oCbOGP_z2GI";
     const header = new fetch.Headers();
     header.append("Content-Type", "application/json");
     header.append("Authorization", `Bearer ${token}`);

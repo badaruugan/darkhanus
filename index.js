@@ -2,11 +2,12 @@ const data = require('./testdata');
 // const data = require("./data");
 const fetch = require("node-fetch");
 const fs = require("fs");
+const v4 = require("uuid");
 const asyncPool = require("tiny-async-pool");
 
 console.log("hello darkhan us");
 // https://www.convertjson.com/xml-to-json.htm
-
+//https://www.convertcsv.com/json-to-csv.htm
 const start = async function () {
   let total = data.length;
   let totalSendable = 0;
@@ -18,7 +19,7 @@ const start = async function () {
   let failedNumberCount = 0;
   let failedNumberList = [];
 
-  const allowedAmount = 1000;
+  const allowedAmount = 10000;
 
   // calc total number
   
@@ -33,10 +34,9 @@ const start = async function () {
   await asyncPool(1, dataList, async (entry) => {
     try {
       let result = await createInvoice({
-        customer_code: entry.CUSNUMBER,
+        customer_code: entry.CUSCODE,
         branch_name: entry.BRANCHNAME,
-        invoice_id: entry.INVOICEID,
-        invoice_date: new Date(entry.INVDATE).toISOString(),
+        invoice_date: new Date().toISOString(),
         invoice_description: entry.CALCMONTH + " төлбөр",
         total_price: parseFloat(entry.TOTALPRICE).toFixed(2),
       });
@@ -44,14 +44,13 @@ const start = async function () {
       try {
         result = JSON.parse(result);
       } catch (err) {
-        console.log("INVOICEID: ", entry.INVOICEID, " CUSNUMBER: ", entry.CUSNUMBER);
+        console.log("CUSCODE: ", entry.CUSCODE);
         console.log("RESULT", result);
 
         failedNumberCount++;
         failedNumberList.push({
           phoneNumber: `${entry.CUSTOMERPHONE}`,
-          invoice_id: entry.INVOICEID,
-          customer_no: entry.CUSNUMBER,
+          customer_no: entry.CUSCODE,
           operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
           error: `error_invoice_creating: ${JSON.stringify(result)}`,
         });
@@ -63,7 +62,7 @@ const start = async function () {
 
         const rawMessage = [
           "Darhan-Us",
-          "Kod: " + entry.CUSNUMBER,
+          "Kod: " + entry.CUSCODE,
           entry.CALCMONTH + " sar tulbur: " + parseFloat(entry.MONTHPRICE).toFixed(2) + " tug",
           "Toloh dun: " + parseFloat(entry.TOTALPRICE).toFixed(2) + " tug",
           "Xaan 5045052676",
@@ -76,8 +75,7 @@ const start = async function () {
         if (message.length > 160) {
           return failedNumberList.push({
             phoneNumber: `${entry.CUSTOMERPHONE}`,
-            invoice_id: entry.INVOICEID,
-            customer_no: entry.CUSNUMBER,
+            customer_no: entry.CUSCODE,
             operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
             message: message,
             error: `sms_send_error: 160 character overlimit`,
@@ -94,8 +92,7 @@ const start = async function () {
           successNumberList.push({
             phoneNumber: `${entry.CUSTOMERPHONE}`,
             operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
-            // "invoice_id" : entry.INVOICEID,
-            // "customer_no" : entry.CUSNUMBER,
+            // "customer_no" : entry.CUSCODE,
             message: message,
           });
            console.log('sent ',successNumberCount, '/' , totalSendable);
@@ -103,8 +100,7 @@ const start = async function () {
           failedNumberCount++;
           failedNumberList.push({
             phoneNumber: `${entry.CUSTOMERPHONE}`,
-            invoice_id: entry.INVOICEID,
-            customer_no: entry.CUSNUMBER,
+            customer_no: entry.CUSCODE,
             operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
             message: message,
             error: `sms_send_error: ${JSON.stringify(smsResult)}`,
@@ -114,8 +110,7 @@ const start = async function () {
         failedNumberCount++;
         failedNumberList.push({
           phoneNumber: `${entry.CUSTOMERPHONE}`,
-          invoice_id: entry.INVOICEID,
-          customer_no: entry.CUSNUMBER,
+          customer_no: entry.CUSCODE,
           operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
           error: `error_invoice_creating: ${JSON.stringify(result)}`,
         });
@@ -137,7 +132,7 @@ const start = async function () {
 };
 
 const createInvoice = async function (data) {
-  const { customer_code, branch_name, invoice_id, invoice_date, invoice_description, total_price } = data;
+  const { customer_code, branch_name,  invoice_date, invoice_description, total_price } = data;
 
   const invoice_code = "DARKHAN_US_INVOICE";
   const merchant_code = "DARKHAN_US";
@@ -146,7 +141,7 @@ const createInvoice = async function (data) {
   const gen_invoice = {
     invoice_code: invoice_code,
     merchant_branch_code: branch_name,
-    merchant_invoice_number: invoice_id,
+    merchant_invoice_number: v4(),
     invoice_date: invoice_date,
     invoice_description: invoice_description,
     invoice_total_discounts: "",
@@ -224,7 +219,7 @@ const postRequest = async function (data) {
 const sendSms = async function (body) {
   try {
     const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiJDS2tHdmVGbjVFZkU4U2U4OF9iaGVYTksxQmtKbURweiIsImlhdCI6MTY1MDQzMjM4NSwiZXhwIjozMzAwOTUxMTcwfQ.NTmlmEFbsZ0i__Sp9m8SkQzNan9_tdSP0A7S_h9a0m8";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiJDTEtfa1BMN1p6bVhvQ3o2UTh3UUpjS2ttTlNmNUkxeiIsImlhdCI6MTY1NjE2MzE5NiwiZXhwIjozMzEyNDEyNzkyfQ.wbcde2eXo3iV228Ah9Cp7bwc0z9Xd7qSdFoR402ZuAQ";
     const header = new fetch.Headers();
     header.append("Content-Type", "application/json");
     header.append("Authorization", `Bearer ${token}`);
