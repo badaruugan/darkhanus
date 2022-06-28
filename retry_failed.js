@@ -37,15 +37,15 @@ const start = async function () {
   const allowedAmount = 10000;
 
   // calc total number
-  const failedList = data.filter((entry) => 
-       successList.find((o) => o.phoneNumber == entry.CUSTOMERPHONE && o.message.includes(parseFloat(entry.TOTALPRICE).toFixed(0))) == undefined 
+  const failedList = data.filter((entry) =>
+       successList.find((o) => o.phoneNumber == entry.CUSTOMERPHONE && o.message.includes(parseFloat(entry.TOTALPRICE).toFixed(0))) == undefined
        && parseFloat(entry.TOTALPRICE) >= allowedAmount
-       && !isEmpty(`${entry.CUSTOMERPHONE}`) 
+       && !isEmpty(`${entry.CUSTOMERPHONE}`)
        &&  `${entry.CUSTOMERPHONE}`.match("^[8-9]{1}[0-9]{7}$")
   );
 
   totalSendable = failedList.length
- 
+
   await asyncPool(1, failedList, async (entry) => {
     try {
       const invoiceId = genInvoiceNumber(failedList.indexOf(entry) + 1);
@@ -144,7 +144,7 @@ const start = async function () {
           operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
           error: `error_invoice_creating: ${JSON.stringify(result)}`,
         });
-        console.log("Error:" + result.ret_type, result.response.result_msg);
+        console.log("Error:" + result.ret_type, result.response);
       }
     } catch (err) {
       console.log(err);

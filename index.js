@@ -1,7 +1,7 @@
 // const data = require('./testdata');
 const data = require("./data");
 const fetch = require("node-fetch");
-const fs = require("fs"); 
+const fs = require("fs");
 const asyncPool = require("tiny-async-pool");
 
 console.log("hello darkhan us");
@@ -37,7 +37,7 @@ const start = async function () {
   const allowedAmount = 10000;
 
   // calc total number
-  
+
   const dataList = data.filter((entry) => (
     !isEmpty(`${entry.CUSTOMERPHONE}`) &&
     `${entry.CUSTOMERPHONE}`.match("^[8-9]{1}[0-9]{7}$") &&
@@ -46,11 +46,12 @@ const start = async function () {
 
   totalSendable = dataList.length;
 
- 
 
+  let merInvNo = 2022062805166;
   await asyncPool(1, dataList, async (entry) => {
-    try { 
-      const invoiceId = genInvoiceNumber(dataList.indexOf(entry) + 1);
+    try {
+      ++merInvNo;
+      const invoiceId = genInvoiceNumber(merInvNo);
       let result = await createInvoice({
         customer_code: entry.CUSCODE,
         branch_name: entry.BRANCHNAME,
