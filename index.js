@@ -1,13 +1,28 @@
 const data = require('./testdata');
 // const data = require("./data");
 const fetch = require("node-fetch");
-const fs = require("fs");
-const v4 = require("uuid");
+const fs = require("fs"); 
 const asyncPool = require("tiny-async-pool");
 
 console.log("hello darkhan us");
 // https://www.convertjson.com/xml-to-json.htm
 //https://www.convertcsv.com/json-to-csv.htm
+
+String.prototype.padZero= function(len, c){
+  var s= this, c= c || '0';
+  if(len <= s.length) return this;
+  while(s.length< len) s= c+ s;
+  return s;
+}
+
+var dt = new Date();
+var month = ('0' + (dt.getMonth() + 1)).slice(-2);
+var day = ('0' + dt.getDate()).slice(-2);
+const date = `${dt.getFullYear()}${month}${day}`;
+
+
+const genInvoiceNumber = (num) => date +`${num}`.padZero(5);
+
 const start = async function () {
   let total = data.length;
   let totalSendable = 0;
@@ -31,12 +46,16 @@ const start = async function () {
 
   totalSendable = dataList.length;
 
+ 
+
   await asyncPool(1, dataList, async (entry) => {
-    try {
+    try { 
+      const invoiceId = genInvoiceNumber(dataList.indexOf(entry) + 1);
       let result = await createInvoice({
         customer_code: entry.CUSCODE,
         branch_name: entry.BRANCHNAME,
-        invoice_date: new Date().toISOString(),
+        invoice_id :invoiceId,
+        invoice_date: dt.toISOString(),
         invoice_description: entry.CALCMONTH + " төлбөр",
         total_price: parseFloat(entry.TOTALPRICE).toFixed(2),
       });
@@ -60,13 +79,22 @@ const start = async function () {
       if (result.result_code == 0) {
         generatedInvoiceCount++;
 
+        // const rawMessage = [
+        //   "Darhan-Us",
+        //   "Kod: " + entry.CUSCODE,
+        //   entry.CALCMONTH + " sar tulbur: " + parseFloat(entry.MONTHPRICE).toFixed(2) + " tug",
+        //   "Toloh dun: " + parseFloat(entry.TOTALPRICE).toFixed(2) + " tug",
+        //   "Xaan 5045052676",
+        //   "Tur 140800003249",
+        //   result.json_data.qPay_shortUrl,
+        // ];
+
         const rawMessage = [
-          "Darhan-Us",
-          "Kod: " + entry.CUSCODE,
-          entry.CALCMONTH + " sar tulbur: " + parseFloat(entry.MONTHPRICE).toFixed(2) + " tug",
-          "Toloh dun: " + parseFloat(entry.TOTALPRICE).toFixed(2) + " tug",
-          "Xaan 5045052676",
-          "Tur 140800003249",
+          "DUS HK",
+          "Kod:" + entry.CUSCODE,
+          "Tulbur:" + parseFloat(entry.TOTALPRICE).toFixed(0) + "tug",
+          "2022.06.29nii dotor tulnu vv!",
+          "tulugdugvi tohioldold US HYZGAARLAH bolohiig medegdey!",
           result.json_data.qPay_shortUrl,
         ];
 
@@ -90,9 +118,9 @@ const start = async function () {
         if (smsResult == true) {
           successNumberCount++;
           successNumberList.push({
+            invoiceNo : invoiceId,
             phoneNumber: `${entry.CUSTOMERPHONE}`,
             operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
-            // "customer_no" : entry.CUSCODE,
             message: message,
           });
            console.log('sent ',successNumberCount, '/' , totalSendable);
@@ -132,7 +160,7 @@ const start = async function () {
 };
 
 const createInvoice = async function (data) {
-  const { customer_code, branch_name,  invoice_date, invoice_description, total_price } = data;
+  const { customer_code, branch_name, invoice_id, invoice_date, invoice_description, total_price } = data;
 
   const invoice_code = "DARKHAN_US_INVOICE";
   const merchant_code = "DARKHAN_US";
@@ -141,7 +169,7 @@ const createInvoice = async function (data) {
   const gen_invoice = {
     invoice_code: invoice_code,
     merchant_branch_code: branch_name,
-    merchant_invoice_number: v4(),
+    merchant_invoice_number: invoice_id,
     invoice_date: invoice_date,
     invoice_description: invoice_description,
     invoice_total_discounts: "",
@@ -217,9 +245,9 @@ const postRequest = async function (data) {
 };
 
 const sendSms = async function (body) {
-  try {
+   try {
     const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiJDTEtfa1BMN1p6bVhvQ3o2UTh3UUpjS2ttTlNmNUkxeiIsImlhdCI6MTY1NjE2MzE5NiwiZXhwIjozMzEyNDEyNzkyfQ.wbcde2eXo3iV228Ah9Cp7bwc0z9Xd7qSdFoR402ZuAQ";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiJDTEtfa1BMN1p6bVhvQ3o2UTh3UUpjS2ttTlNmNUkxeiIsImlhdCI6MTY1NjQwOTcwNSwiZXhwIjozMzEyOTA1ODEwfQ.BSQE8V6hJhs64OV7adUYMpCimgTZ1LZKE7NXkEM_Lhk";
     const header = new fetch.Headers();
     header.append("Content-Type", "application/json");
     header.append("Authorization", `Bearer ${token}`);
