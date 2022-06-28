@@ -1,5 +1,5 @@
-const data = require('./testdata');
-// const data = require("./data");
+// const data = require('./testdata');
+const data = require("./data");
 const fetch = require("node-fetch");
 const fs = require("fs"); 
 const asyncPool = require("tiny-async-pool");

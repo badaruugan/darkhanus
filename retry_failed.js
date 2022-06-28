@@ -8,6 +8,21 @@ const asyncPool = require("tiny-async-pool");
 console.log("Retring failed");
 // https://www.convertjson.com/xml-to-json.htm
 
+String.prototype.padZero= function(len, c){
+  var s= this, c= c || '0';
+  if(len <= s.length) return this;
+  while(s.length< len) s= c+ s;
+  return s;
+}
+
+var dt = new Date();
+var month = ('0' + (dt.getMonth() + 1)).slice(-2);
+var day = ('0' + dt.getDate()).slice(-2);
+const date = `${dt.getFullYear()}${month}${day}`;
+
+
+const genInvoiceNumber = (num) => date +`${num}`.padZero(5);
+
 const start = async function () {
   let total = data.length;
   let totalSendable = 0;
@@ -19,11 +34,11 @@ const start = async function () {
   let failedNumberCount = 0;
   let failedNumberList = [];
 
-  const allowedAmount = 1000;
+  const allowedAmount = 10000;
 
   // calc total number
   const failedList = data.filter((entry) => 
-       successList.find((o) => o.phoneNumber == entry.CUSTOMERPHONE && o.message.includes(parseFloat(entry.TOTALPRICE).toFixed(2))) == undefined 
+       successList.find((o) => o.phoneNumber == entry.CUSTOMERPHONE && o.message.includes(parseFloat(entry.TOTALPRICE).toFixed(0))) == undefined 
        && parseFloat(entry.TOTALPRICE) >= allowedAmount
        && !isEmpty(`${entry.CUSTOMERPHONE}`) 
        &&  `${entry.CUSTOMERPHONE}`.match("^[8-9]{1}[0-9]{7}$")
@@ -33,11 +48,12 @@ const start = async function () {
  
   await asyncPool(1, failedList, async (entry) => {
     try {
+      const invoiceId = genInvoiceNumber(failedList.indexOf(entry) + 1);
       let result = await createInvoice({
-        customer_code: entry.CUSNUMBER,
+        customer_code: entry.CUSCODE,
         branch_name: entry.BRANCHNAME,
-        invoice_id: entry.INVOICEID,
-        invoice_date: new Date(entry.INVDATE).toISOString(),
+        invoice_id: invoiceId,
+        invoice_date: dt.toISOString(),
         invoice_description: entry.CALCMONTH + " төлбөр",
         total_price: parseFloat(entry.TOTALPRICE).toFixed(2),
       });
@@ -45,14 +61,14 @@ const start = async function () {
       try {
         result = JSON.parse(result);
       } catch (err) {
-        console.log("INVOICEID: ", entry.INVOICEID, " CUSNUMBER: ", entry.CUSNUMBER);
+        console.log("INVOICEID: ", invoiceId, " CUSCODE: ", entry.CUSCODE);
         console.log("RESULT", result);
 
         failedNumberCount++;
         failedNumberList.push({
           phoneNumber: `${entry.CUSTOMERPHONE}`,
-          invoice_id: entry.INVOICEID,
-          customer_no: entry.CUSNUMBER,
+          invoice_id: invoiceId,
+          customer_no: entry.CUSCODE,
           operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
           error: `error_invoice_creating: ${JSON.stringify(result)}`,
         });
@@ -62,13 +78,22 @@ const start = async function () {
       if (result.result_code == 0) {
         generatedInvoiceCount++;
 
+        // const rawMessage = [
+        //   "Darhan-Us",
+        //   "Kod: " + entry.CUSCODE,
+        //   entry.CALCMONTH + " sar tulbur: " + parseFloat(entry.MONTHPRICE).toFixed(2) + " tug",
+        //   "Toloh dun: " + parseFloat(entry.TOTALPRICE).toFixed(2) + " tug",
+        //   "Xaan 5045052676",
+        //   "Tur 140800003249",
+        //   result.json_data.qPay_shortUrl,
+        // ];
+
         const rawMessage = [
-          "Darhan-Us",
-          "Kod: " + entry.CUSNUMBER,
-          entry.CALCMONTH + " sar tulbur: " + parseFloat(entry.MONTHPRICE).toFixed(2) + " tug",
-          "Toloh dun: " + parseFloat(entry.TOTALPRICE).toFixed(2) + " tug",
-          "Xaan 5045052676",
-          "Tur 140800003249",
+          "DUS HK",
+          "Kod:" + entry.CUSCODE,
+          "Tulbur:" + parseFloat(entry.TOTALPRICE).toFixed(0) + "tug",
+          "2022.06.29nii dotor tulnu vv!",
+          "tulugdugvi tohioldold US HYZGAARLAH bolohiig medegdey!",
           result.json_data.qPay_shortUrl,
         ];
 
@@ -77,8 +102,8 @@ const start = async function () {
         if (message.length > 160) {
           return failedNumberList.push({
             phoneNumber: `${entry.CUSTOMERPHONE}`,
-            invoice_id: entry.INVOICEID,
-            customer_no: entry.CUSNUMBER,
+            invoice_id: invoiceId,
+            customer_no: entry.CUSCODE,
             operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
             message: message,
             error: `sms_send_error: 160 character overlimit`,
@@ -93,10 +118,9 @@ const start = async function () {
         if (smsResult == true) {
           successNumberCount++;
           successNumberList.push({
+            invoiceNo : invoiceId,
             phoneNumber: `${entry.CUSTOMERPHONE}`,
             operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
-            // "invoice_id" : entry.INVOICEID,
-            // "customer_no" : entry.CUSNUMBER,
             message: message,
           });
            console.log('sent ',successNumberCount, '/' , totalSendable);
@@ -104,8 +128,8 @@ const start = async function () {
           failedNumberCount++;
           failedNumberList.push({
             phoneNumber: `${entry.CUSTOMERPHONE}`,
-            invoice_id: entry.INVOICEID,
-            customer_no: entry.CUSNUMBER,
+            invoice_id: invoiceId,
+            customer_no: entry.CUSCODE,
             operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
             message: message,
             error: `sms_send_error: ${JSON.stringify(smsResult)}`,
@@ -115,8 +139,8 @@ const start = async function () {
         failedNumberCount++;
         failedNumberList.push({
           phoneNumber: `${entry.CUSTOMERPHONE}`,
-          invoice_id: entry.INVOICEID,
-          customer_no: entry.CUSNUMBER,
+          invoice_id: invoiceId,
+          customer_no: entry.CUSCODE,
           operator: getMobileOperatorName(`${entry.CUSTOMERPHONE}`),
           error: `error_invoice_creating: ${JSON.stringify(result)}`,
         });
@@ -225,7 +249,7 @@ const postRequest = async function (data) {
 const sendSms = async function (body) {
   try {
     const token =
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiJDS2tHdmVGbjVFZkU4U2U4OF9iaGVYTksxQmtKbURweiIsImlhdCI6MTY1MDQzMjM4NSwiZXhwIjozMzAwOTUxMTcwfQ.NTmlmEFbsZ0i__Sp9m8SkQzNan9_tdSP0A7S_h9a0m8";
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiQURNSU5JU1RSQVRPUiIsInNlc3Npb25faWQiOiJDTEtfa1BMN1p6bVhvQ3o2UTh3UUpjS2ttTlNmNUkxeiIsImlhdCI6MTY1NjQwOTcwNSwiZXhwIjozMzEyOTA1ODEwfQ.BSQE8V6hJhs64OV7adUYMpCimgTZ1LZKE7NXkEM_Lhk";
     const header = new fetch.Headers();
     header.append("Content-Type", "application/json");
     header.append("Authorization", `Bearer ${token}`);
